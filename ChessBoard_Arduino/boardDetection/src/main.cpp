@@ -4,7 +4,9 @@
 
 #include <Arduino.h>
 //#include "traitementMouvement.h"
-  
+const int buttonPin = 2;     // the number of the pushbutton pin
+int buttonState = 0;         // variable for reading the pushbutton status
+
 // JP1 is an input
 //char *rows[] = {"A8","A9","A10","A11","A12","A13","A14","A15"};
 byte rows[] = {31,33,35,37,39,41,43,45};
@@ -35,20 +37,13 @@ bool ERROR = false;
 
 void setup() {
   Serial.begin(9600);
+  pinMode(buttonPin, INPUT);
 }
 
 listEtat traitementMouvement(int* posInit, int* posFin, char* move, listEtat etat) {
 
       char liste_carc1[8] = {'a','b','c','d','e','f','g','h'};
       char liste_carc2[8] = {'1','2','3','4','5','6','7','8'};
-
-      Serial.println("POSINIT");
-      Serial.println(posInit[0]);
-      Serial.println(posInit[1]);
-
-      Serial.println("POSFINAL");
-      Serial.println(posFin[0]);
-      Serial.println(posFin[1]);
 
     if (posInit[0]>=0 && posInit[0] <8){
       move[0] = liste_carc1[posInit[0]];
@@ -81,8 +76,6 @@ listEtat traitementMouvement(int* posInit, int* posFin, char* move, listEtat eta
   if (etat != ERREUR) {
     etat = ENVOI;
   }
-  Serial.print(" mouvement ");
-  Serial.println(move);
 
   return etat;
 }
@@ -109,47 +102,45 @@ void readMatrix() {
 }
  
 void printMatrix() {
-  for (int rowIndex = (rowCount-1); rowIndex >= 0; rowIndex--) {
-    if (rowIndex >= 0){
-      Serial.print(F("0"));
-    }
-    Serial.print(rowIndex); Serial.print(F(": "));
-    for (int colIndex = 0; colIndex < colCount; colIndex++) { 
-      Serial.print(keysActu[colIndex][rowIndex]);
-      if (colIndex < 10){
-        Serial.print(F(", "));
-      }
-    }   
-    Serial.println("");
-  }
-  Serial.println("    a  b  c  d  e  f  g  h");
-  Serial.println("");
+  // for (int rowIndex = (rowCount-1); rowIndex >= 0; rowIndex--) {
+  //   if (rowIndex >= 0){
+  //     Serial.print(F("0"));
+  //   }
+  //   Serial.print(rowIndex); Serial.print(F(": "));
+  //   for (int colIndex = 0; colIndex < colCount; colIndex++) { 
+  //     Serial.print(keysActu[colIndex][rowIndex]);
+  //     if (colIndex < 10){
+  //       Serial.print(F(", "));
+  //     }
+  //   }   
+  //   Serial.println("");
+  // }
+  // Serial.println("    a  b  c  d  e  f  g  h");
+  // Serial.println("");
 }
  
 void loop() {
-  Serial.print("loop ");
-  Serial.println(etat);
-  delay(1000);
+
+  delay(10);
   
   switch (etat) {
     case INITIALISATION:{
 
-      Serial.println("INIT");
       pinMode(pinButton, INPUT);
  
-      // for(int x=0; x<rowCount; x++) {
-      //   Serial.print(rows[x]); Serial.println(" as input");
-      //   pinMode(rows[x], INPUT);
-      // }
+      for(int x=0; x<rowCount; x++) {
+        // Serial.print(rows[x]); Serial.println(" as input");
+        pinMode(rows[x], INPUT);
+      }
 
-      // for (int x=0; x<colCount; x++) {
-      //   Serial.print(cols[x]); Serial.println(" as input-pullup");
-      //   pinMode(cols[x], INPUT_PULLUP);
-      // }
+      for (int x=0; x<colCount; x++) {
+        // Serial.print(cols[x]); Serial.println(" as input-pullup");
+        pinMode(cols[x], INPUT_PULLUP);
+      }
 
-      // for (int i = 0; i < 7; i++){
-      //   Serial.println(rows[i]);
-      // } 
+      for (int i = 0; i < 7; i++){
+        // Serial.println(rows[i]);
+      } 
 
       for(int x=0; x<rowCount; x++) {
         for (int y=0; y<colCount; y++) {
@@ -158,28 +149,15 @@ void loop() {
         }
       }
 
-      // AJOUT BOUCLE WHILE //
-      // VERIF POS PIECES DEPART //
-      // ENVOI INIT DONE //
-
       etat = DEBUT;
     }
     break;
 
     case DEBUT: {
+        buttonState = digitalRead(buttonPin);
 
-    
-      Serial.println("DEBUT");
-            delay(1000);
-
-      //Mettre une couleur de led
-      if (Serial.available() > 0) {
-        incomingByte = Serial.read();
-      }
-      //etatButton = digitalRead(pinButton);
-      //if (etatButton == 1) { 
-      if (incomingByte == 32){
-        incomingByte = 0;
+      if (buttonState == HIGH){
+        buttonState = 0;
         readMatrix();
         printMatrix();
         for(int x=0; x<rowCount; x++) {
@@ -194,26 +172,16 @@ void loop() {
 
     case ATTENTE:{
 
-    
-      Serial.println("ATTENTE");
-            delay(1000);
+  buttonState = digitalRead(buttonPin);
 
-      if (Serial.available() > 0) {
-        incomingByte = Serial.read();
-      }
-      //Mettre couleur led
-      //etatButton = digitalRead(pinButton);
-      //if (etatButton == 1) {
-      if (incomingByte == 32){
-        incomingByte = 0;  
+      if (buttonState == HIGH){
+        buttonState = 0;
         etat = LECTURE;
       }
     }
     break;
 
     case LECTURE:{
-
-      Serial.println("LECTURE");
 
       //Mettre couleur led
       readMatrix();
@@ -259,26 +227,26 @@ void loop() {
     break;
 
     case ANALYSE:
-          Serial.println("ANALYSE");
-
       printMatrix();
       etat = traitementMouvement(posInit,posFin,move,etat);
     break;
 
     case ENVOI:
-          Serial.println("ENVOI");
-
       //Envoi du mouvement au pi
       Serial.println(move);
+      Serial.flush();
       etat = RECEPTION;
     break;
 
     case RECEPTION:
     {
-          Serial.println("RECEPTION");
+      bool OK = true;  
 
       //Lecture de la valeur de retour
-      bool OK = true;
+      // if (Serial.available() > 0) {
+      //   OK = Serial.read();
+      // }
+
       if (OK == false) {
         etat = ERREUR;
         break;
@@ -302,7 +270,6 @@ void loop() {
     case ERREUR:{
     
       //Mettre couleur led
-      Serial.println("ERREUR");
       posInit[0] = -1;
       posInit[1] = -1;
       posFin[0] = -1;
